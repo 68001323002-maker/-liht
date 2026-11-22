@@ -1,0 +1,138 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #0b1220;
+  color: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard {
+  max-width: 600px;
+  width: 100%;
+  margin: auto;
+  padding: 30px 20px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+header h1 {
+  font-size: 1.5rem;
+}
+
+.connection-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #162033;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot.online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.dot.offline { background: #ef4444; }
+
+.control-card {
+  background: #131c31;
+  border: 1px solid #23314d;
+  border-radius: 16px;
+  padding: 30px 20px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.house-preview {
+  margin-bottom: 25px;
+}
+
+.bulb {
+  font-size: 4.5rem;
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+  filter: grayscale(100%) opacity(0.3);
+}
+
+.bulb.on {
+  filter: grayscale(0%) opacity(1) drop-shadow(0 0 25px rgba(250, 204, 21, 0.8));
+}
+
+.status-text {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #94a3b8;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.btn {
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.2s;
+}
+
+.btn:active { transform: scale(0.97); }
+.btn-on { background: #22c55e; color: #052e16; }
+.btn-off { background: #ef4444; color: #ffffff; }
+
+.dimmer-control {
+  background: #0b1220;
+  padding: 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.dimmer-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+  color: #cbd5e1;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: #facc15;
+  cursor: pointer;
+}
+
+.message-status {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+footer {
+  text-align: center;
+  margin-top: 25px;
+  font-size: 0.8rem;
+  color: #475569;
+  letter-spacing: 1px;
+}
