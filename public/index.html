@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Smart Light Control (GPIO 26)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0b1220;
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: #131c31;
+      border: 1px solid #23314d;
+      border-radius: 20px;
+      padding: 35px 25px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    .header h1 { font-size: 1.3rem; }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0b1220;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .dot.online { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+    .bulb-area { margin: 20px 0 30px; }
+    .bulb {
+      font-size: 5rem;
+      transition: all 0.3s ease;
+      filter: grayscale(100%) opacity(0.25);
+    }
+    .bulb.on {
+      filter: grayscale(0%) opacity(1) drop-shadow(0 0 30px rgba(250, 204, 21, 0.85));
+    }
+    .led-text {
+      margin-top: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #94a3b8;
+    }
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-on { background: #22c55e; color: #052e16; }
+    .btn-off { background: #ef4444; color: #ffffff; }
+    .log-text {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>💡 ไฟในบ้าน (GPIO 26)</h1>
+      <div class="status-badge">
+        <span id="espDot" class="dot"></span>
+        <span id="espStatus">OFFLINE</span>
+      </div>
+    </div>
+
+    <div class="bulb-area">
+      <div id="bulbIcon" class="bulb">💡</div>
+      <p id="ledText" class="led-text">สถานะไฟ: ปิดอยู่ (OFF)</p>
+    </div>
+
+    <div class="btn-group">
+      <button id="btnOn" class="btn btn-on" onclick="sendCommand('ON')" disabled>เปิดแสงสว่าง</button>
+      <button id="btnOff" class="btn btn-off" onclick="sendCommand('OFF')" disabled>ปิดแสงสว่าง</button>
+    </div>
+
+    <p id="logText" class="log-text">กำลังเชื่อมต่อกับเซิร์ฟเวอร์ Render...</p>
+  </div>
+
+  <script>
+    // เชื่อมต่อ WebSocket อัตโนมัติตาม URL ของ Render
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}`;
+    let ws;
+
+    const espDot = document.getElementById("espDot");
+    const espStatus = document.getElementById("espStatus");
+    const bulbIcon = document.getElementById("bulbIcon");
+    const ledText = document.getElementById("ledText");
+    const btnOn = document.getElementById("btnOn");
+    const btnOff = document.getElementById("btnOff");
+    const logText = document.getElementById("logText");
+
+    function connectWebSocket() {
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        logText.textContent = "เชื่อมต่อเซิร์ฟเวอร์สำเร็จ รอการตอบกลับจาก ESP32...";
+        // แจ้งเซิร์ฟเวอร์ว่านี่คือหน้าเว็บควบคุม
+        ws.send(JSON.stringify({ type: "WEB_CLIENT" }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          // 1. อัปเดตสถานะการเชื่อมต่อของ ESP32 (ONLINE / OFFLINE)
+          if (data.type === "ESP_STATUS") {
+            updateEspStatus(data.online);
+          }
+
+          // 2. อัปเดตสถานะหลอดไฟจริงจาก GPIO 26 (ON / OFF)
+          if (data.type === "LED_STATE") {
+            updateLedUI(data.state);
+          }
+        } catch (err) {
+          console.error("ข้อมูลผิดพลาด:", err);
+        }
+      };
+
+      ws.onclose = () => {
+        updateEspStatus(false);
+        logText.textContent = "ขาดการเชื่อมต่อจากเซิร์ฟเวอร์ กำลังเชื่อมต่อใหม่...";
+        setTimeout(connectWebSocket, 3000);
+      };
+    }
+
+    // ส่งคำสั่งเปิด-ปิดไปยัง server.js
+    function sendCommand(command) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "COMMAND", gpio: 26, state: command }));
+        logText.textContent = `ส่งคำสั่ง ${command} ไปยัง GPIO 26 แล้ว`;
+      }
+    }
+
+    // เปลี่ยนหน้าตาปุ่มและป้าย ONLINE / OFFLINE
+    function updateEspStatus(isOnline) {
+      if (isOnline) {
+        espDot.classList.add("online");
+        espStatus.textContent = "ONLINE";
+        espStatus.style.color = "#4ade80";
+        btnOn.disabled = false;
+        btnOff.disabled = false;
+        logText.textContent = "ESP32 พร้อมทำงาน (GPIO 26)";
+      } else {
+        espDot.classList.remove("online");
+        espStatus.textContent = "OFFLINE";
+        espStatus.style.color = "#f87171";
+        btnOn.disabled = true;
+        btnOff.disabled = true;
+        updateLedUI("OFF");
+        logText.textContent = "ไม่พบการเชื่อมต่อจากบอร์ด ESP32";
+      }
+    }
+
+    // เปลี่ยนรูปหลอดไฟตามสถานะจริง
+    function updateLedUI(state) {
+      if (state === "ON") {
+        bulbIcon.classList.add("on");
+        ledText.textContent = "สถานะไฟ: เปิดอยู่ (ON)";
+        ledText.style.color = "#facc15";
+      } else {
+        bulbIcon.classList.remove("on");
+        ledText.textContent = "สถานะไฟ: ปิดอยู่ (OFF)";
+        ledText.style.color = "#94a3b8";
+      }
+    }
+
+    connectWebSocket();
+  </script>
+</body>
+</html>
